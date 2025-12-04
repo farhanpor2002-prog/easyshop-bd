@@ -1,0 +1,469 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>easyshopbd — Online Store</title>
+  <style>
+    /* Reset + Basic */
+    :root{
+      --brand:#ff9900; --dark:#111; --muted:#666; --card:#fff;
+      --bg:#f5f6f8;
+    }
+    *{box-sizing:border-box}
+    body{margin:0;font-family:Inter,system-ui,Segoe UI,Roboto,"Helvetica Neue",Arial;background:var(--bg);color:var(--dark)}
+    a{color:inherit}
+    header{background:#fff;padding:12px 20px;display:flex;align-items:center;justify-content:space-between;box-shadow:0 2px 6px rgba(0,0,0,0.06);position:sticky;top:0;z-index:10}
+    .brand{display:flex;align-items:center;gap:12px}
+    .brand h1{margin:0;font-size:20px}
+    nav a{margin-left:14px;text-decoration:none;color:var(--muted)}
+    .container{max-width:1120px;margin:20px auto;padding:0 16px}
+    .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:16px}
+    .card{background:var(--card);padding:12px;border-radius:8px;box-shadow:0 1px 4px rgba(0,0,0,0.06);display:flex;flex-direction:column}
+    .card img{width:100%;height:180px;object-fit:cover;border-radius:6px}
+    .price{color:var(--brand);font-weight:700;margin-top:8px}
+    .actions{margin-top:auto;display:flex;gap:8px}
+    button, .btn{padding:8px 10px;border-radius:6px;border:none;background:var(--brand);color:#fff;cursor:pointer}
+    .btn.secondary{background:#eee;color:#111}
+    .product-page{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+    .product-page img{width:100%;height:420px;object-fit:cover;border-radius:8px}
+    .cart-badge{background:var(--brand);color:#fff;padding:6px 10px;border-radius:16px}
+    footer{padding:18px;text-align:center;color:var(--muted);margin-top:40px}
+    .topline{display:flex;gap:12px;align-items:center}
+    .search{padding:8px;border-radius:8px;border:1px solid #e6e6e6;width:320px}
+    /* Cart table */
+    table{width:100%;border-collapse:collapse}
+    th,td{padding:10px;border-bottom:1px solid #eee;text-align:left}
+    .flex{display:flex;gap:12px;align-items:center}
+    .admin-panel{background:#fff;padding:12px;border-radius:8px;box-shadow:0 1px 6px rgba(0,0,0,0.04)}
+    .reviews{margin-top:12px}
+    textarea{width:100%;min-height:80px;padding:8px;border-radius:6px;border:1px solid #ddd}
+    input[type="text"], input[type="number"], select{padding:8px;border-radius:6px;border:1px solid #ddd;width:100%}
+    .small{font-size:13px;color:var(--muted)}
+    @media (max-width:800px){
+      .product-page{grid-template-columns:1fr; padding-bottom:30px}
+      .brand h1{font-size:18px}
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="brand">
+      <img src="https://via.placeholder.com/48x48.png?text=ES" alt="logo" style="border-radius:6px"/>
+      <div>
+        <h1>easyshopbd</h1>
+        <div class="small">Fashion • Cosmetics • Birthday Stuff</div>
+      </div>
+    </div>
+
+    <div style="display:flex;align-items:center;gap:16px">
+      <input id="search" class="search" placeholder="Search products..." />
+      <a href="#" id="cartLink" class="cart-badge">Cart <span id="cartCount">0</span></a>
+      <a href="#" id="adminLink" class="small">Admin</a>
+    </div>
+  </header>
+
+  <main class="container" id="main">
+    <!-- Home view -->
+    <section id="homeView">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+        <h2>Featured Products</h2>
+        <div class="small">Delivery: Sylhet 100 BDT • Rest of Bangladesh 180 BDT</div>
+      </div>
+
+      <div id="productGrid" class="grid"></div>
+    </section>
+
+    <!-- Product detail view -->
+    <section id="productView" style="display:none"></section>
+
+    <!-- Cart view -->
+    <section id="cartView" style="display:none"></section>
+
+    <!-- Admin view -->
+    <section id="adminView" style="display:none"></section>
+  </main>
+
+  <footer>
+    © <span id="year"></span> easyshopbd — Orders via WhatsApp: <a id="waLinkFooter" href="#" target="_blank">+8801603226595</a>
+  </footer>
+
+  <script>
+  /**************
+   Single-file SPA using localStorage
+   Admin password: nadiyaMd6060916@
+   WhatsApp number: 8801603226595
+  ***************/
+
+  const WHATSAPP_NUM = "8801603226595";
+  const ADMIN_PASS = "nadiyaMd6060916@";
+  const DELIVERY_SYLHET = 100;
+  const DELIVERY_REST = 180;
+  const STORAGE_KEY = "easyshopbd_data_v1";
+
+  // Initial demo products (images from unsplash)
+  const demoProducts = [
+    {
+      id: "p1",
+      name: "Rose Ball Candle (Handmade)",
+      price: 450,
+      category: "Birthday Stuff",
+      image: "https://images.unsplash.com/photo-1545239351-1141bd82e8a6?q=80&w=1200&auto=format&fit=crop&ixlib=rb-4.0.3&s=4a3c4d6f8e7a9b2f7f5a1b2c3d4e5f6a",
+      description: "Beautiful handmade rose ball candle. Perfect for gifts, decor & special occasions."
+    },
+    {
+      id: "p2",
+      name: "Birthday Balloon Decoration Set",
+      price: 1200,
+      category: "Birthday Stuff",
+      image: "https://images.unsplash.com/photo-1558980394-0a9b2f5a2e0f?q=80&w=1200&auto=format&fit=crop&ixlib=rb-4.0.3&s=5d6b7a8c9f7e6d3b2a1c4e5f6a7b8c9d",
+      description: "Complete balloon set for birthday party — easy to setup and stylish."
+    },
+    {
+      id: "p3",
+      name: "Decorative Scented Candle Sticks",
+      price: 350,
+      category: "Cosmetics",
+      image: "https://images.unsplash.com/photo-1506084868230-bb9d95c24759?q=80&w=1200&auto=format&fit=crop&ixlib=rb-4.0.3&s=9c8b7a6e5d4c3b2a1f0e9d8c7b6a5f4e",
+      description: "Elegant scented candle sticks with decorative embossing — long burning."
+    },
+    {
+      id: "p4",
+      name: "Luxury Face Serum (30ml)",
+      price: 950,
+      category: "Fashion",
+      image: "https://images.unsplash.com/photo-1544005313-94ddf0286df2?q=80&w=1200&auto=format&fit=crop&ixlib=rb-4.0.3&s=b1a2c3d4e5f6798a7b6c5d4e3f2a1b0c",
+      description: "Brightening serum for clear glowing skin. Lightweight and fast absorbing."
+    }
+  ];
+
+  // Save & load
+  function loadData(){
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if(!raw){
+      const initial = { products: demoProducts, reviews: {}, orders: [] };
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(initial));
+      return initial;
+    }
+    try{ return JSON.parse(raw); } catch(e){ localStorage.removeItem(STORAGE_KEY); return loadData(); }
+  }
+  function saveData(data){ localStorage.setItem(STORAGE_KEY, JSON.stringify(data)); }
+
+  // App state
+  let state = {
+    data: loadData(),
+    cart: [],
+    view: "home", // home, product, cart, admin
+    currentProduct: null
+  };
+
+  // Utils
+  function $(sel){ return document.querySelector(sel) }
+  function qAll(sel){ return Array.from(document.querySelectorAll(sel)) }
+
+  // Render functions
+  function renderGrid(filter=""){
+    const grid = $("#productGrid");
+    grid.innerHTML = "";
+    const prods = state.data.products.filter(p => p.name.toLowerCase().includes(filter.toLowerCase()) || p.category.toLowerCase().includes(filter.toLowerCase()));
+    prods.forEach(p=>{
+      const div = document.createElement("div");
+      div.className = "card";
+      div.innerHTML = `
+        <img src="${p.image}" alt="${escapeHtml(p.name)}" />
+        <h3 style="margin:8px 0 4px">${escapeHtml(p.name)}</h3>
+        <div class="small">${escapeHtml(p.category)}</div>
+        <div class="price">${p.price} BDT</div>
+        <div class="actions">
+          <button class="btn" data-add="${p.id}">Add to cart</button>
+          <button class="btn secondary" data-view="${p.id}">Details</button>
+        </div>
+      `;
+      grid.appendChild(div);
+    });
+    // attach
+    grid.querySelectorAll("[data-add]").forEach(btn=> btn.onclick = ()=> { addToCart(btn.getAttribute("data-add")); });
+    grid.querySelectorAll("[data-view]").forEach(btn=> btn.onclick = ()=> { openProduct(btn.getAttribute("data-view")); });
+  }
+
+  function renderHome(){
+    $("#homeView").style.display = "";
+    $("#productView").style.display = "none";
+    $("#cartView").style.display = "none";
+    $("#adminView").style.display = "none";
+    renderGrid($("#search").value || "");
+  }
+
+  function openProduct(id){
+    const p = state.data.products.find(x=>x.id===id);
+    if(!p) return alert("Product not found");
+    state.currentProduct = p;
+    $("#homeView").style.display = "none";
+    $("#productView").style.display = "";
+    $("#cartView").style.display = "none";
+    $("#adminView").style.display = "none";
+    const pv = $("#productView");
+    pv.innerHTML = `
+      <div class="product-page">
+        <div>
+          <img src="${p.image}" alt="${escapeHtml(p.name)}"/>
+        </div>
+        <div>
+          <h2>${escapeHtml(p.name)}</h2>
+          <div class="small">${escapeHtml(p.category)}</div>
+          <p class="price">${p.price} BDT</p>
+          <p>${escapeHtml(p.description)}</p>
+
+          <div style="margin-top:14px" class="flex">
+            <button class="btn" id="addCartSingle">Add to cart</button>
+            <a class="btn" id="waOrder" target="_blank">Order via WhatsApp</a>
+          </div>
+
+          <section class="reviews">
+            <h3>Reviews</h3>
+            <div id="reviewsList"></div>
+            <form id="reviewForm" style="margin-top:8px">
+              <textarea id="reviewText" placeholder="Write your review..." required></textarea>
+              <div style="display:flex;gap:8px;margin-top:8px">
+                <select id="reviewRating">
+                  <option value="5">5 ★</option>
+                  <option value="4">4 ★</option>
+                  <option value="3">3 ★</option>
+                  <option value="2">2 ★</option>
+                  <option value="1">1 ★</option>
+                </select>
+                <button class="btn" type="submit">Send review</button>
+              </div>
+            </form>
+          </section>
+        </div>
+      </div>
+    `;
+    $("#addCartSingle").onclick = ()=> addToCart(p.id);
+    const waText = encodeURIComponent(`Salam! I want to order: ${p.name} — Price ${p.price} BDT. Please confirm. (easyshopbd)`);
+    $("#waOrder").href = `https://wa.me/${WHATSAPP_NUM}?text=${waText}`;
+    renderReviews(p.id);
+  }
+
+  function renderReviews(productId){
+    const list = $("#reviewsList");
+    const reviews = state.data.reviews[productId] || [];
+    list.innerHTML = reviews.length===0 ? "<p class='small'>No reviews yet</p>" : reviews.map(r=>`<div style="padding:8px;background:#fff;border-radius:6px;margin-bottom:8px"><strong>${escapeHtml(r.author||"Guest")}</strong> — <span>${r.rating}★</span><p style="margin:6px 0 0">${escapeHtml(r.text)}</p></div>`).join("");
+    $("#reviewForm").onsubmit = (e)=>{
+      e.preventDefault();
+      const text = $("#reviewText").value.trim();
+      const rating = Number($("#reviewRating").value);
+      if(!text) return;
+      if(!state.data.reviews[productId]) state.data.reviews[productId] = [];
+      state.data.reviews[productId].unshift({ text, rating, author: "Guest", createdAt: Date.now() });
+      saveData(state.data);
+      $("#reviewText").value = "";
+      renderReviews(productId);
+    }
+  }
+
+  function addToCart(id){
+    const p = state.data.products.find(x=>x.id===id);
+    if(!p) return;
+    const found = state.cart.find(i=>i.id===id);
+    if(found) found.qty += 1;
+    else state.cart.push({ id: p.id, name: p.name, price: p.price, qty: 1 });
+    updateCartBadge();
+    alert("Added to cart");
+  }
+
+  function updateCartBadge(){ $("#cartCount").textContent = state.cart.reduce((s,i)=>s+i.qty,0); }
+
+  function openCart(){
+    $("#homeView").style.display = "none";
+    $("#productView").style.display = "none";
+    $("#cartView").style.display = "";
+    $("#adminView").style.display = "none";
+
+    const cv = $("#cartView");
+    const subtotal = state.cart.reduce((s,i)=>s + i.price * i.qty, 0);
+    const shippingDefault = "Sylhet";
+    cv.innerHTML = `
+      <div class="admin-panel">
+        <h2>Cart</h2>
+        ${state.cart.length===0 ? "<p>Your cart is empty</p>" : `
+          <table>
+            <thead><tr><th>Item</th><th>Qty</th><th>Price</th><th></th></tr></thead>
+            <tbody>
+              ${state.cart.map(i=>`<tr><td>${escapeHtml(i.name)}</td><td><input type="number" min="1" data-qty="${i.id}" value="${i.qty}" style="width:64px"/></td><td>${i.price * i.qty} BDT</td><td><button data-remove="${i.id}" class="btn secondary">Remove</button></td></tr>`).join("")}
+            </tbody>
+          </table>
+          <div style="display:flex;gap:12px;margin-top:12px">
+            <div style="flex:1">
+              <label class="small">Name</label><input id="custName" type="text" placeholder="Your name" />
+              <label class="small">Phone</label><input id="custPhone" type="text" placeholder="01XXXXXXXXX" />
+              <label class="small">Shipping area</label>
+              <select id="shippingArea">
+                <option value="Sylhet">Sylhet</option>
+                <option value="Rest">Rest of Bangladesh</option>
+              </select>
+            </div>
+            <div style="width:320px;background:#fff;padding:12px;border-radius:8px">
+              <p class="small">Subtotal: <strong>${subtotal} BDT</strong></p>
+              <p class="small">Delivery: <strong id="deliveryFee">${DELIVERY_SYLHET} BDT</strong></p>
+              <h3>Total: <span id="totalSum">${subtotal + DELIVERY_SYLHET} BDT</span></h3>
+              <div style="margin-top:8px;display:flex;gap:8px">
+                <button id="orderWhatsApp" class="btn">Order via WhatsApp</button>
+                <button id="clearCart" class="btn secondary">Clear Cart</button>
+              </div>
+            </div>
+          </div>
+        `}
+      </div>
+    `;
+    // events
+    cv.querySelectorAll("[data-remove]").forEach(b=> b.onclick = ()=> { const id = b.getAttribute("data-remove"); state.cart = state.cart.filter(i=>i.id!==id); openCart(); updateCartBadge(); });
+    cv.querySelectorAll("[data-qty]").forEach(inp => inp.onchange = ()=> {
+      const id = inp.getAttribute("data-qty"); const v = Number(inp.value) || 1;
+      const item = state.cart.find(i=>i.id===id); if(item) item.qty = v; openCart(); updateCartBadge();
+    });
+    const ship = $("#shippingArea");
+    if(ship){ ship.onchange = ()=> {
+      const fee = ship.value === "Sylhet" ? DELIVERY_SYLHET : DELIVERY_REST;
+      $("#deliveryFee").textContent = fee + " BDT";
+      const total = subtotal + fee;
+      $("#totalSum").textContent = total + " BDT";
+    } }
+    $("#orderWhatsApp")?.addEventListener("click", ()=>{
+      if(state.cart.length===0) return alert("Cart empty");
+      const name = $("#custName").value || "Guest";
+      const phone = $("#custPhone").value || "";
+      const shipping = $("#shippingArea").value || "Sylhet";
+      const fee = shipping === "Sylhet" ? DELIVERY_SYLHET : DELIVERY_REST;
+      const items = state.cart.map(i=> `${i.name} x${i.qty} = ${i.price*i.qty} BDT`).join("%0A");
+      const subtotal2 = subtotal;
+      const total = subtotal2 + fee;
+      const text = encodeURIComponent(`Order from easyshopbd%0AName: ${name}%0APhone: ${phone}%0AShipping: ${shipping}%0AItems:%0A${decodeURIComponent(items)}%0ASubtotal: ${subtotal2} BDT%0ADelivery: ${fee} BDT%0ATotal: ${total} BDT`);
+      window.open(`https://wa.me/${WHATSAPP_NUM}?text=${text}`, "_blank");
+    });
+    $("#clearCart")?.addEventListener("click", ()=> { if(confirm("Clear cart?")){ state.cart = []; openCart(); updateCartBadge(); } });
+  }
+
+  function renderAdmin(){
+    $("#homeView").style.display = "none";
+    $("#productView").style.display = "none";
+    $("#cartView").style.display = "none";
+    $("#adminView").style.display = "";
+
+    const av = $("#adminView");
+    av.innerHTML = `
+      <div class="admin-panel">
+        <h2>Admin Panel</h2>
+        <div id="adminContent"></div>
+      </div>
+    `;
+
+    if(!sessionStorage.getItem("es_admin_logged")){
+      const loginHtml = `
+        <p>Enter admin password to manage products and prices</p>
+        <input id="adminPass" type="password" placeholder="Admin password" />
+        <div style="margin-top:8px"><button id="doLogin" class="btn">Login</button></div>
+      `;
+      $("#adminContent").innerHTML = loginHtml;
+      $("#doLogin").onclick = ()=> {
+        const v = $("#adminPass").value;
+        if(v === ADMIN_PASS){ sessionStorage.setItem("es_admin_logged","1"); renderAdmin(); } else alert("Wrong password");
+      }
+      return;
+    }
+
+    // Logged in
+    const contentHtml = `
+      <div style="display:flex;gap:12px;flex-wrap:wrap">
+        <div style="flex:1;min-width:320px">
+          <h3>Add new product</h3>
+          <label class="small">Name</label><input id="newName" type="text"/>
+          <label class="small">Price</label><input id="newPrice" type="number"/>
+          <label class="small">Category</label><input id="newCategory" type="text" value="Fashion"/>
+          <label class="small">Image URL</label><input id="newImage" type="text" placeholder="https://..."/>
+          <label class="small">Description</label><textarea id="newDesc"></textarea>
+          <div style="margin-top:8px"><button id="addProductBtn" class="btn">Add Product</button> <button id="logout" class="btn secondary">Logout</button></div>
+        </div>
+
+        <div style="flex:1;min-width:320px">
+          <h3>Existing products</h3>
+          <div id="prodList"></div>
+        </div>
+      </div>
+    `;
+    $("#adminContent").innerHTML = contentHtml;
+
+    function renderProdList(){
+      const list = $("#prodList");
+      list.innerHTML = state.data.products.map(p=>`
+        <div style="display:flex;gap:8px;align-items:center;padding:8px;background:#fff;border-radius:6px;margin-bottom:8px">
+          <img src="${p.image}" width="64" height="64" style="object-fit:cover;border-radius:6px"/>
+          <div style="flex:1">
+            <input data-edit-name="${p.id}" value="${escapeHtml(p.name)}" />
+            <input data-edit-price="${p.id}" type="number" value="${p.price}" style="width:120px;margin-top:6px"/>
+            <div class="small" style="margin-top:6px">${escapeHtml(p.category)}</div>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:6px">
+            <button data-save="${p.id}" class="btn">Save</button>
+            <button data-delete="${p.id}" class="btn secondary">Delete</button>
+          </div>
+        </div>
+      `).join("");
+      // attach events
+      list.querySelectorAll("[data-save]").forEach(b=> b.onclick = ()=>{
+        const id = b.getAttribute("data-save");
+        const name = list.querySelector(`[data-edit-name='${id}']`).value;
+        const price = Number(list.querySelector(`[data-edit-price='${id}']`).value) || 0;
+        const prod = state.data.products.find(x=>x.id===id);
+        if(prod){ prod.name = name; prod.price = price; saveData(state.data); renderProdList(); renderGrid($("#search").value||""); alert("Saved"); }
+      });
+      list.querySelectorAll("[data-delete]").forEach(b=> b.onclick = ()=>{
+        if(!confirm("Delete this product?")) return;
+        const id = b.getAttribute("data-delete");
+        state.data.products = state.data.products.filter(x=>x.id!==id);
+        saveData(state.data);
+        renderProdList();
+        renderGrid($("#search").value||"");
+      });
+    }
+
+    $("#addProductBtn").onclick = ()=>{
+      const name = $("#newName").value.trim();
+      const price = Number($("#newPrice").value) || 0;
+      const category = $("#newCategory").value.trim() || "Misc";
+      const image = $("#newImage").value.trim() || "https://via.placeholder.com/600x400.png?text=Product";
+      const desc = $("#newDesc").value.trim() || "";
+      if(!name) return alert("Name required");
+      const id = "p" + Date.now();
+      state.data.products.unshift({ id, name, price, category, image, description: desc });
+      saveData(state.data);
+      $("#newName").value = ""; $("#newPrice").value = ""; $("#newImage").value=""; $("#newDesc").value="";
+      renderProdList();
+      renderGrid($("#search").value||"");
+      alert("Product added");
+    }
+
+    $("#logout").onclick = ()=> { sessionStorage.removeItem("es_admin_logged"); renderAdmin(); }
+    renderProdList();
+  }
+
+  // Helpers
+  function escapeHtml(str){ if(!str) return ""; return String(str).replace(/[&<>"']/g, s=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' })[s]); }
+
+  // Routing-like handlers
+  $("#search").addEventListener("input", ()=> renderGrid($("#search").value));
+  $("#cartLink").onclick = (e)=> { e.preventDefault(); openCart(); }
+  $("#adminLink").onclick = (e)=> { e.preventDefault(); renderAdmin(); }
+
+  // initial render
+  document.getElementById("year").textContent = new Date().getFullYear();
+  $("#waLinkFooter").href = `https://wa.me/${WHATSAPP_NUM}`;
+  renderHome();
+  updateCartBadge();
+
+  // Allow back to home from product view by clicking brand
+  document.querySelector(".brand").onclick = ()=> { renderHome(); }
+
+  </script>
+</body>
+</html>
